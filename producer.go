@@ -103,8 +103,8 @@ func publish(amqpURI, exchange, exchangeType, queueName, routingKey, body string
 	}
 
 	log.Printf("declared Exchange, publishing %dB body (%q)", len(body), body)
-	for x := 0; x < 10000; x++{
-		if err = channel.Publish(
+	for {
+		if err := channel.Publish(
 			exchange,   // publish to an exchange
 			routingKey, // routing to 0 or more queues
 			false,      // mandatory
@@ -131,7 +131,7 @@ func publish(amqpURI, exchange, exchangeType, queueName, routingKey, body string
 // is closed.
 func confirmOne(ack, nack chan uint64) {
 	log.Printf("waiting for confirmation of one publishing")
-	for x := 0; x < 10000; x++{
+	for x := 0; x < 10000000; x++{
 		select {
 		case tag := <-ack:
 			log.Printf("confirmed delivery with delivery tag: %d", tag)
