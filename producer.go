@@ -18,6 +18,7 @@ var (
 	routingKey   = flag.String("key", "test-key", "AMQP routing key")
 	body         = flag.String("body", "foobar", "Body of message")
 	reliable     = flag.Bool("reliable", true, "Wait for the publisher confirmation before exiting")
+	repeat       = flag.Int("repeat", 1000, "Amount of times to send message")
 )
 
 func init() {
@@ -28,7 +29,7 @@ func main() {
 	if err := publish(*uri, *exchangeName, *exchangeType, *queue, *routingKey, *body, *reliable); err != nil {
 		log.Fatalf("%s", err)
 	}
-	log.Printf("published %dB OK", len(*body))
+	log.Printf("published %dB OK", len(*body)**repeat)
 }
 
 func publish(amqpURI, exchange, exchangeType, queueName, routingKey, body string, reliable bool) error {
@@ -103,7 +104,7 @@ func publish(amqpURI, exchange, exchangeType, queueName, routingKey, body string
 	}
 
 	log.Printf("declared Exchange, publishing %dB body (%q)", len(body), body)
-	for {
+	for x := 0; x < *repeat; x++ {
 		if err := channel.Publish(
 			exchange,   // publish to an exchange
 			routingKey, // routing to 0 or more queues
@@ -131,7 +132,7 @@ func publish(amqpURI, exchange, exchangeType, queueName, routingKey, body string
 // is closed.
 func confirmOne(ack, nack chan uint64) {
 	log.Printf("waiting for confirmation of one publishing")
-	for x := 0; x < 10000000; x++{
+	for x := 0; x < *repeat; x++ {
 		select {
 		case tag := <-ack:
 			log.Printf("confirmed delivery with delivery tag: %d", tag)

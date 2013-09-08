@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/streadway/amqp"
+	"github.com/titanous/go-riak"
 	"log"
 	"time"
 )
@@ -20,10 +21,12 @@ var (
 	bindingKey   = flag.String("key", "test-key", "AMQP binding key")
 	consumerTag  = flag.String("consumer-tag", "simple-consumer", "AMQP consumer tag (should not be blank)")
 	lifetime     = flag.Duration("lifetime", 0*time.Second, "lifetime of process before shutdown (0s=infinite)")
+	verbose      = flag.Bool("v", false, "Verbose")
 )
 
 func init() {
 	flag.Parse()
+
 }
 
 func main() {
@@ -151,13 +154,32 @@ func (c *Consumer) Shutdown() error {
 }
 
 func handle(deliveries <-chan amqp.Delivery, done chan error) {
+	client := riak.New("127.0.0.1:8087")
+	err := client.Connect()
+	if err != nil {
+		fmt.Println("Cannot connect, is Riak running?")
+		return
+	}
 	for d := range deliveries {
-		log.Printf(
-			"got %dB delivery: [%v] %q",
-			len(d.Body),
-			d.DeliveryTag,
-			d.Body,
-		)
+		err := client.CounterUpdate("tstriak", string(d.Body), 1)
+		if err != nil {
+			fmt.Errorf("Cannot update counter: %s", err)
+			continue
+		}
+		if *verbose == true {
+			count, err := client.CounterGet("tstriak", string(d.Body))
+			if err != nil {
+				fmt.Errorf("Cannot get counter: %s", err)
+				continue
+			}
+			fmt.Printf("Incremented counter %q to %d\n", d.Body, count)
+			// log.Printf(
+			// 	"got %dB delivery: [%v] %q",
+			// 	len(d.Body),
+			// 	d.DeliveryTag,
+			// 	d.Body,
+			// )
+		}
 		if err := d.Ack(false); err != nil {
 			log.Fatalf("Acknowledgement error: %S", err)
 		}
