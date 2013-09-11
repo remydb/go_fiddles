@@ -37,35 +37,55 @@ func main() {
 	// Use this bucket
 	bucket, _ := client.Bucket("tstriak2")
 
-	// open input file
-	fi, err := os.Open(*input)
+	dir, err := os.Open(*input)
 	if err != nil {
 		panic(err)
 	}
-	// close fi on exit and check for its returned error
-	defer func() {
-		if err := fi.Close(); err != nil {
-			panic(err)
-		}
-	}()
 
-	// Scan through the file used for
-	scanner := bufio.NewScanner(fi)
-	for scanner.Scan() {
-		if strings.HasPrefix(scanner.Text(), "alert") == true {
-			part := strings.Split(scanner.Text(), "sid: ")
-			sid := strings.Split(part[1], ";")
-			data := strings.Join([]string{"{'rule':'", scanner.Text(), "'}"}, "")
-			// fmt.Println(data)
-			// fmt.Println(sid[0])
-			//fmt.Println(scanner.Text())
-			obj := bucket.New(sid[0])
-			obj.ContentType = "application/json"
-			obj.Data = []byte(data)
-			obj.Store()
-		}
-		if err := scanner.Err(); err != nil {
-			log.Fatal(err)
+	info, err := dir.Readdir(-1)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Println(info)
+	for _, info := range info {
+		if info.Mode().IsRegular() {
+			if strings.HasSuffix(info.Name(), ".rules") {
+				// open input file
+				path := strings.Join([]string{*input, info.Name()}, "")
+				fi, err := os.Open(path)
+				if err != nil {
+					panic(err)
+				}
+				// close fi on exit and check for its returned error
+				defer func() {
+					if err := fi.Close(); err != nil {
+						panic(err)
+					}
+				}()
+
+				fmt.Println("Scanning:", path)
+				// Scan through the file used for
+				scanner := bufio.NewScanner(fi)
+				for scanner.Scan() {
+					if strings.HasPrefix(scanner.Text(), "alert") == true {
+						part := strings.Split(scanner.Text(), "sid:")
+						sid := strings.Replace(strings.Split(part[1], ";")[0], " ", "", -1)
+						data := strings.Join([]string{"{'rule':'", scanner.Text(), "'}"}, "")
+						// fmt.Println(data)
+						fmt.Println(sid)
+						dbobj, err := bucket.Get(sid)
+						string(obj.Data)
+						//fmt.Println(scanner.Text())
+						obj := bucket.New(sid)
+						obj.ContentType = "application/json"
+						obj.Data = []byte(data)
+						obj.Store()
+					}
+					if err := scanner.Err(); err != nil {
+						log.Fatal(err)
+					}
+				}
+			}
 		}
 	}
 }
