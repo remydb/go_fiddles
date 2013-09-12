@@ -50,7 +50,7 @@ func main() {
 	for _, info := range info {
 		if info.Mode().IsRegular() {
 			if strings.HasSuffix(info.Name(), ".rules") {
-				// open input file
+				// Open input file
 				path := strings.Join([]string{*input, info.Name()}, "")
 				fi, err := os.Open(path)
 				if err != nil {
@@ -63,6 +63,21 @@ func main() {
 					}
 				}()
 
+				// Open output file
+				fo, err := os.Create("output.txt")
+				if err != nil {
+					panic(err)
+				}
+				// close fo on exit and check for its returned error
+				defer func() {
+					if err := fo.Close(); err != nil {
+						panic(err)
+					}
+				}()
+				// Make write buffer
+				// make a write buffer
+				w := bufio.NewWriter(fo)
+
 				fmt.Println("Scanning:", path)
 				// Scan through the file used for
 				scanner := bufio.NewScanner(fi)
@@ -72,15 +87,30 @@ func main() {
 						sid := strings.Replace(strings.Split(part[1], ";")[0], " ", "", -1)
 						data := strings.Join([]string{"{'rule':'", scanner.Text(), "'}"}, "")
 						// fmt.Println(data)
-						fmt.Println(sid)
+						//fmt.Println(sid)
 						dbobj, err := bucket.Get(sid)
-						string(obj.Data)
-						//fmt.Println(scanner.Text())
-						obj := bucket.New(sid)
-						obj.ContentType = "application/json"
-						obj.Data = []byte(data)
-						obj.Store()
+						if err != nil {
+							panic(err)
+						}
+						if dbobj != nil {
+							if string(dbobj.Data) == data {
+								fmt.Printf("Rule with key %s is identical, not updating\n", dbobj.Key)
+							} else {
+								fmt.Printf("Rule with key %s has new version, writing to file\n", dbobj.Key)
+								if _, err := w.Write(buf[:n]); err != nil {
+									panic(err)
+								}
+							}
+						} else {
+							//fmt.Println(scanner.Text())
+							obj := bucket.New(sid)
+							obj.ContentType = "application/json"
+							obj.Data = []byte(data)
+							obj.Store()
+							fmt.Printf("New rule with key %s added\n", obj.Key)
+						}
 					}
+					//Wait, what's this bit doing again?
 					if err := scanner.Err(); err != nil {
 						log.Fatal(err)
 					}
