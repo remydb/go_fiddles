@@ -9,8 +9,6 @@ import (
 	"log"
 	"os"
 	"strings"
-
-//	"time"
 )
 
 var (
@@ -82,6 +80,9 @@ func main() {
 				// Scan through the file used for
 				scanner := bufio.NewScanner(fi)
 				for scanner.Scan() {
+					if err := scanner.Err(); err != nil {
+						log.Fatal(err)
+					}
 					if strings.HasPrefix(scanner.Text(), "alert") == true {
 						part := strings.Split(scanner.Text(), "sid:")
 						sid := strings.Replace(strings.Split(part[1], ";")[0], " ", "", -1)
@@ -97,9 +98,7 @@ func main() {
 								fmt.Printf("Rule with key %s is identical, not updating\n", dbobj.Key)
 							} else {
 								fmt.Printf("Rule with key %s has new version, writing to file\n", dbobj.Key)
-								if _, err := w.Write(buf[:n]); err != nil {
-									panic(err)
-								}
+								fmt.Fprintln(w, data)
 							}
 						} else {
 							//fmt.Println(scanner.Text())
@@ -110,11 +109,9 @@ func main() {
 							fmt.Printf("New rule with key %s added\n", obj.Key)
 						}
 					}
-					//Wait, what's this bit doing again?
-					if err := scanner.Err(); err != nil {
-						log.Fatal(err)
-					}
+
 				}
+				w.Flush()
 			}
 		}
 	}
